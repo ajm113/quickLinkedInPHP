@@ -19,6 +19,12 @@ class quickLinkedIn {
     public $last_http_response = 0;
     
     function __construct($key = "", $secret = "") {
+    
+        if(!session_id())
+        {
+        	session_start();
+        }
+        
         $this->init($key, $secret);
     }
     
@@ -103,7 +109,8 @@ class quickLinkedIn {
     
     public function setScope($scope)
     {
-    	$this->m_scope = $scope;
+    
+    	$this->m_scope = str_replace(' ', "%20", $scope);
     }
     
     public function setRedirect($url)
@@ -114,17 +121,66 @@ class quickLinkedIn {
     public function getAccessUrl()
     {
     	/* SETUP URL */
-    	 $direction_url = $this->m_base_url.$this->m_api_oath.'/authorization/?response_type=code
-    	   &client_id='.$this->m_key.'
-		   &scope='.urlencode($this->m_scope).'
-		   &state='.urlencode(uniqid('qli_', true)).'
-		   &redirect_uri='.urlencode($this->m_redirect);
-		   
-    	 curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);
- 		$result = curl_exec($this->m_curl_handler);
-        $this->last_http_response = curl_getinfo($this->m_curl_handler, CURLINFO_HTTP_CODE);
+    	$code = uniqid('qli_', true);
+    	 $direction_url = $this->m_base_url.$this->m_api_oath.'/authorization?response_type=code&client_id='.$this->m_key.'&scope='.$this->m_scope.'&state='.urlencode($code).'&redirect_uri='.urlencode($this->m_redirect);
         
-        return $result;
+        //Set session...
+        $_SESSION['qli_csrf_code'] = $code;
+        return $direction_url;
+    }
+    
+    
+    //If any arguments are NULL, we will automaticly '$_GET' them.
+    public function auth_code($code = NULL, $state = NULL)
+    {
+    
+    	//Check to make sure session is good...
+    	if(!isset($_SESSION['qli_csrf_code']))
+    	{
+    		return FALSE;
+    	}
+    	
+    	$passedCode = $_SESSION['qli_csrf_code'];
+    	unset($_SESSION['qli_csrf_code']);
+    	
+    	if(($code === NULL && !isset($_GET['code'])) || ($state === NULL &&  !isset($_GET['state'])))
+    	{
+    		return FALSE;
+    	}
+    	
+    	if(!$code)
+    	{
+    		$code $_GET['code'];
+    	}
+    	
+    	if(!$state)
+    	{
+    		$state $_GET['state'];
+    	}
+    	
+    	
+    	if($state !== $passedCode)
+    	{
+    		return FALSE;
+    	}
+    	
+    	//Generate URL to get token data...
+    	 $direction_url = $this->m_base_url.$this->m_api_oath.'/accessToken?grant_type=authorization_code&code='.$code.'&client_id='.$this->m_key.'&client_secret='.$this->m_secret.'&redirect_uri='.urlencode($this->m_redirect);
+    	
+    	$result = curl_exec($this->m_curl_handler);
+    	curl_setopt($this->m_curl_handler, CURLOPT_POST, 0);
+        $this->last_http_response = curl_getinfo($this->m_curl_handler, CURLINFO_HTTP_CODE);
+    
+    	$response = json_decode($result, TRUE);
+    	
+    	if(!isset($response['access_token']))
+    	{
+    		return FALSE;
+    	}
+    	
+    	$this->m_token = $response['access_token'];
+    	
+    	return $this->m_token;
     }
     
     
