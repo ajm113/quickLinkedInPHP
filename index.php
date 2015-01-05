@@ -2,7 +2,7 @@
 	require_once('quickLinkedIn.php');
 
 
-	$link = new quickLinkedIn('', '');
+	$link = new quickLinkedIn('YOUR_KEY', 'YOUR_SECRET');
 	$link->setRedirect('http://localhost/quickLinkedInPHP/');
 	
 	if(!isset($_GET['code']))
