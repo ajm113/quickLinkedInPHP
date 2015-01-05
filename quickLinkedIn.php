@@ -189,7 +189,8 @@ class quickLinkedIn {
     public function call($function)
     {
         $direction_url = $this->m_base_url.$function."?oauth2_access_token=".$this->m_token."&format=json";
-        curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);    
+        curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);  
+          
         $result = curl_exec($this->m_curl_handler);
         $this->last_http_response = curl_getinfo($this->m_curl_handler, CURLINFO_HTTP_CODE);
         
