@@ -6,7 +6,8 @@ class quickLinkedIn {
     
     /* EVERYTHING ELSE BELOW DOES NOT NEED TO BE CHANGED  */
     
-    private $m_base_url = "https://www.linkedin.com/uas/";
+    private $m_base_oauth_url = "https://www.linkedin.com/uas/";
+    private $m_base_url = "https://api.linkedin.com/v1/";
     private $m_api_oath = "oauth2";
     private $m_curl_handler = NULL;
     private $m_agent_name = "Quick LinkedIn PHP";
@@ -122,7 +123,7 @@ class quickLinkedIn {
     {
     	/* SETUP URL */
     	$code = uniqid('qli_', true);
-    	 $direction_url = $this->m_base_url.$this->m_api_oath.'/authorization?response_type=code&client_id='.$this->m_key.'&scope='.$this->m_scope.'&state='.urlencode($code).'&redirect_uri='.urlencode($this->m_redirect);
+    	 $direction_url = $this->m_base_oauth_url.$this->m_api_oath.'/authorization?response_type=code&client_id='.$this->m_key.'&scope='.$this->m_scope.'&state='.urlencode($code).'&redirect_uri='.urlencode($this->m_redirect);
         
         //Set session...
         $_SESSION['qli_csrf_code'] = $code;
@@ -131,31 +132,31 @@ class quickLinkedIn {
     
     
     //If any arguments are NULL, we will automaticly '$_GET' them.
-    public function auth_code($code = NULL, $state = NULL)
+    public function auth_code($code = '', $state = '')
     {
     
     	//Check to make sure session is good...
     	if(!isset($_SESSION['qli_csrf_code']))
-    	{
+    	{	
     		return FALSE;
     	}
     	
     	$passedCode = $_SESSION['qli_csrf_code'];
     	unset($_SESSION['qli_csrf_code']);
     	
-    	if(($code === NULL && !isset($_GET['code'])) || ($state === NULL &&  !isset($_GET['state'])))
+    	if(($code === '' && !isset($_GET['code'])) || ($state === '' &&  !isset($_GET['state'])))
     	{
     		return FALSE;
     	}
     	
-    	if(!$code)
+    	if(empty($code))
     	{
-    		$code $_GET['code'];
+    		$code = $_GET['code'];
     	}
     	
-    	if(!$state)
+    	if(empty($state))
     	{
-    		$state $_GET['state'];
+    		$state  = $_GET['state'];
     	}
     	
     	
@@ -165,7 +166,8 @@ class quickLinkedIn {
     	}
     	
     	//Generate URL to get token data...
-    	 $direction_url = $this->m_base_url.$this->m_api_oath.'/accessToken?grant_type=authorization_code&code='.$code.'&client_id='.$this->m_key.'&client_secret='.$this->m_secret.'&redirect_uri='.urlencode($this->m_redirect);
+    	 $direction_url = $this->m_base_oauth_url.$this->m_api_oath.'/accessToken?grant_type=authorization_code&code='.$code.'&client_id='.$this->m_key.'&client_secret='.$this->m_secret.'&redirect_uri='.urlencode($this->m_redirect);
+    	curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);
     	
     	$result = curl_exec($this->m_curl_handler);
     	curl_setopt($this->m_curl_handler, CURLOPT_POST, 0);
@@ -179,38 +181,19 @@ class quickLinkedIn {
     	}
     	
     	$this->m_token = $response['access_token'];
-    	
     	return $this->m_token;
     }
     
     
     
-    public function call($function, $data = NULL)
+    public function call($function)
     {
-        $direction_url = $this->m_base_url.$this->m_api_ver.'/'.$function;
-        curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);
-        
-        $idata = $this->generate_auth();
-        
-        if(is_array($data))
-        {   
-           $idata = array_merge($idata, $data);
-        }
-        
-        $fields_string = "";
-        foreach($idata as $key=>$value) { $fields_string .= $key.'='.$value.'&'; }
-        rtrim($fields_string, '&');
-        
-        if(count($idata) > 0)
-        {
-            curl_setopt($this->m_curl_handler, CURLOPT_POST, count($idata));
-            curl_setopt($this->m_curl_handler, CURLOPT_POSTFIELDS, $fields_string);
-        }
-        
+        $direction_url = $this->m_base_url.$function."?oauth2_access_token=".$this->m_token."&format=json";
+        curl_setopt($this->m_curl_handler, CURLOPT_URL, $direction_url);    
         $result = curl_exec($this->m_curl_handler);
         $this->last_http_response = curl_getinfo($this->m_curl_handler, CURLINFO_HTTP_CODE);
         
-        return $this->xml_to_object($result);
+        return $result;
     }
 }
 ?>
